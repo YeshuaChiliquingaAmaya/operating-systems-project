@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitoreo del Sistema</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            text-align: center;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 {
+            margin-bottom: 20px;
+        }
+
+        .parent {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 15px;
+            max-width: 90%;
+            margin: auto;
+            height: 85vh;
+        }
+
+        .box {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            height: 100%;
+        }
+
+        canvas {
+            width: 90% !important;
+            height: 80% !important;
+        }
+
+        .scrollable {
+            overflow-y: auto;
+            max-height: 350px;
+            width: 100%;
+        }
+
+        table {
+            width: 95%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        table, th, td {
+            border: 1px solid black;
+        }
+
+        th, td {
+            padding: 5px;
+            text-align: left;
+        }
+
+        /* Estilos para la barra de progreso del disco */
+        .progress-container {
+            width: 100%;
+            background-color: #ddd;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+
+        .progress-bar {
+            height: 20px;
+            text-align: center;
+            line-height: 20px;
+            color: white;
+            border-radius: 10px;
+        }
+
+        .progress-text {
+            margin-top: 5px;
+        }
+
+    </style>
+</head>
+<body>
+
+    <h1>Monitoreo de Recursos del Sistema</h1>
+
+    <div class="parent">
+        <div class="box">
+            <h3>Uso de CPU</h3>
+            <canvas id="graficoCPU"></canvas>
+        </div>
+        <div class="box">
+            <h3>Memoria</h3>
+            <canvas id="graficoMemoria"></canvas>
+        </div>
+        <div class="box">
+            <h3>Red (Networking)</h3>
+            <canvas id="graficoRed"></canvas>
+        </div>
+        <div class="box">
+            <h3>Procesos Activos</h3>
+            <div class="scrollable">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>PID</th>
+                            <th>Proceso</th>
+                            <th>CPU (%)</th>
+                            <th>Memoria (%)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="procesosTabla">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="box">
+            <h3>Otros Recursos (Disco Duro)</h3>
+            <div class="progress-container">
+                <div id="diskProgress" class="progress-bar" style="width: 50%; background-color: #3498db;">50%</div>
+            </div>
+            <div class="progress-text" id="diskText">Cargando...</div>
+        </div>
+    </div>
+
+    <script>
+        const ctxCPU = document.getElementById('graficoCPU').getContext('2d');
+        const ctxMemoria = document.getElementById('graficoMemoria').getContext('2d');
+        const ctxRed = document.getElementById('graficoRed').getContext('2d');
+
+        const graficoCPU = new Chart(ctxCPU, {
+            type: 'line',
+            data: { labels: [], datasets: [{ label: 'Uso CPU (%)', data: [], borderColor: 'red' }] },
+            options: { responsive: true, scales: { y: { beginAtZero: true } } }
+        });
+
+        const graficoMemoria = new Chart(ctxMemoria, {
+            type: 'line',
+            data: { labels: [], datasets: [{ label: 'Memoria Usada (%)', data: [], borderColor: 'blue' }] },
+            options: { responsive: true, scales: { y: { beginAtZero: true } } }
+        });
+
+        const graficoRed = new Chart(ctxRed, {
+            type: 'line',
+            data: { labels: [], datasets: [{ label: 'Envío (MB)', data: [], borderColor: 'green' },
+                                           { label: 'Recepción (MB)', data: [], borderColor: 'purple' }] },
+            options: { responsive: true, scales: { y: { beginAtZero: true } } }
+        });
+
+        async function actualizarDatos() {
+            const response = await fetch('/monitoreo');
+            const datos = await response.json();
+            const timestamp = new Date().toLocaleTimeString();
+
+            agregarDatos(graficoCPU, timestamp, datos.cpu.uso);
+            agregarDatos(graficoMemoria, timestamp, datos.memoria.usada);
+            agregarDatos(graficoRed, timestamp, datos.red.envio, datos.red.recepcion);
+
+            actualizarBarraDisco(datos.disco);
+            actualizarTablaProcesos(datos.procesos_lista);
+        }
+
+        function agregarDatos(grafico, label, dato1, dato2 = null) {
+            if (grafico.data.labels.length > 20) {
+                grafico.data.labels.shift();
+                grafico.data.datasets[0].data.shift();
+            }
+            grafico.data.labels.push(label);
+            grafico.data.datasets[0].data.push(dato1);
+            grafico.update();
+        }
+
+        function actualizarTablaProcesos(procesos) {
+            const tabla = document.getElementById("procesosTabla");
+            tabla.innerHTML = "";
+
+            procesos.forEach(proc => {
+                let fila = `<tr>
+                    <td>${proc.pid}</td>
+                    <td>${proc.nombre}</td>
+                    <td style="color: ${proc.cpu > 50 ? 'red' : 'black'}">${proc.cpu}%</td>
+                    <td style="color: ${proc.memoria > 20 ? 'blue' : 'black'}">${proc.memoria}%</td>
+                </tr>`;
+                tabla.innerHTML += fila;
+            });
+        }
+
+        function actualizarBarraDisco(disco) {
+            const progreso = document.getElementById("diskProgress");
+            const texto = document.getElementById("diskText");
+
+            progreso.style.width = disco.porcentaje + "%";
+            progreso.innerHTML = disco.porcentaje + "%";
+
+            if (disco.porcentaje < 50) {
+                progreso.style.backgroundColor = "#27ae60";  // Verde si hay mucho espacio
+            } else if (disco.porcentaje < 80) {
+                progreso.style.backgroundColor = "#f39c12";  // Naranja si se está llenando
+            } else {
+                progreso.style.backgroundColor = "#e74c3c";  // Rojo si está casi lleno
+            }
+
+            texto.innerHTML = `Espacio usado: ${disco.usado}GB / ${disco.total}GB`;
+        }
+
+        setInterval(actualizarDatos, 5000);
+    </script>
+
+</body>
+</html>
