@@ -66,7 +66,6 @@
             text-align: left;
         }
 
-        /* Estilos para la barra de progreso del disco */
         .progress-container {
             width: 100%;
             background-color: #ddd;
@@ -157,25 +156,33 @@
         });
 
         async function actualizarDatos() {
-            const response = await fetch('/monitoreo');
-            const datos = await response.json();
-            const timestamp = new Date().toLocaleTimeString();
+            try {
+                const response = await fetch('/monitoreo');
+                if (!response.ok) throw new Error('Error al obtener datos');
+                
+                const datos = await response.json();
+                const timestamp = new Date().toLocaleTimeString();
 
-            agregarDatos(graficoCPU, timestamp, datos.cpu.uso);
-            agregarDatos(graficoMemoria, timestamp, datos.memoria.usada);
-            agregarDatos(graficoRed, timestamp, datos.red.envio, datos.red.recepcion);
+                agregarDatos(graficoCPU, timestamp, datos.cpu.uso);
+                agregarDatos(graficoMemoria, timestamp, datos.memoria.usada);
+                agregarDatos(graficoRed, timestamp, datos.red.envio, datos.red.recepcion);
 
-            actualizarBarraDisco(datos.disco);
-            actualizarTablaProcesos(datos.procesos_lista);
+                actualizarBarraDisco(datos.disco);
+                actualizarTablaProcesos(datos.procesos_lista);
+            } catch (error) {
+                console.error("Error al actualizar datos:", error);
+            }
         }
 
         function agregarDatos(grafico, label, dato1, dato2 = null) {
             if (grafico.data.labels.length > 20) {
                 grafico.data.labels.shift();
                 grafico.data.datasets[0].data.shift();
+                if (dato2 !== null) grafico.data.datasets[1].data.shift();
             }
             grafico.data.labels.push(label);
             grafico.data.datasets[0].data.push(dato1);
+            if (dato2 !== null) grafico.data.datasets[1].data.push(dato2);
             grafico.update();
         }
 
@@ -200,14 +207,7 @@
 
             progreso.style.width = disco.porcentaje + "%";
             progreso.innerHTML = disco.porcentaje + "%";
-
-            if (disco.porcentaje < 50) {
-                progreso.style.backgroundColor = "#27ae60";  // Verde si hay mucho espacio
-            } else if (disco.porcentaje < 80) {
-                progreso.style.backgroundColor = "#f39c12";  // Naranja si se está llenando
-            } else {
-                progreso.style.backgroundColor = "#e74c3c";  // Rojo si está casi lleno
-            }
+            progreso.style.backgroundColor = disco.porcentaje > 80 ? "#e74c3c" : disco.porcentaje > 50 ? "#f39c12" : "#27ae60";
 
             texto.innerHTML = `Espacio usado: ${disco.usado}GB / ${disco.total}GB`;
         }

@@ -1,0 +1,46 @@
+# 🔹 Archivos y carpetas de Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg
+*.egg-info/
+*.pyo
+*.pyd
+
+# 🔹 Archivos de entorno virtual
+venv/
+.env
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# 🔹 Configuración y logs
+.DS_Store
+*.log
+*.sqlite3
+
+# 🔹 Archivos de caché y compilación
+*.bak
+*.swp
+*.swo
+*.orig
+
+# 🔹 Archivos de Flask
+instance/
+*.db
+.mypy_cache/
+.pytest_cache/
+*.cache
+
+# 🔹 Archivos de Reportes en PDF e Imágenes generadas
+*.pdf
+*.png
+*.jpg
+
+# 🔹 Archivos de configuración de editor
+.vscode/
+.idea/
+*.iml
+
+# 🔹 Configuración de MongoDB (si usas archivos locales)
+dump/
