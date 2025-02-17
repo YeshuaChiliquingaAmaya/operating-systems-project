@@ -33,7 +33,7 @@ end
 # Unset irrelevant variables.
 deactivate nondestructive
 
-set -gx VIRTUAL_ENV /home/kibo/Escritorio/ProSO/operating-systems-project/venv
+set -gx VIRTUAL_ENV /home/yeshua/Documents/sistemas_operativos/P3/operating-systems-project/venv
 
 set -gx _OLD_VIRTUAL_PATH $PATH
 set -gx PATH "$VIRTUAL_ENV/"bin $PATH

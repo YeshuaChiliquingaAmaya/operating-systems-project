@@ -1,4 +1,4 @@
-#!/home/kibo/Escritorio/ProSO/operating-systems-project/venv/bin/python3
+#!/home/yeshua/Documents/sistemas_operativos/P3/operating-systems-project/venv/bin/python3
 # -*- coding: utf-8 -*-
 import re
 import sys
