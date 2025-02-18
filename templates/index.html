@@ -86,6 +86,67 @@
             margin-top: 5px;
         }
 
+        .terminal-container {
+            width: 100%;
+            background: black;
+            color: white;
+            padding: 10px;
+            font-family: "Fira Code", monospace;
+            font-size: 14px;
+            border-radius: 5px;
+            box-shadow: inset 0px 0px 10px rgba(0, 255, 0, 0.5);
+            height: 250px;
+            overflow-y: auto;
+            position: relative;
+            text-align: left; /* Asegura que el contenido esté alineado a la izquierda */
+        }
+        
+        .terminal-output {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            color: #33ff33;
+            padding: 5px;
+            max-height: 180px;
+            overflow-y: auto;
+            text-align: left; /* Asegura alineación izquierda en la salida */
+        }
+        
+        .terminal-prompt {
+            display: flex;
+            align-items: center;
+            padding: 5px;
+            text-align: left; /* Asegura alineación izquierda */
+        }
+        
+        .prompt-user {
+            color: #33ff33;
+            font-weight: bold;
+        }
+        
+        .prompt-path {
+            color: #66ccff;
+            margin-left: 5px;
+        }
+        
+        .prompt-symbol {
+            color: #ffcc00;
+            margin-left: 5px;
+        }
+        
+        #comandoInput {
+            background: transparent;
+            border: none;
+            color: white;
+            font-family: "Fira Code", monospace;
+            font-size: 14px;
+            width: 80%;
+            outline: none;
+            margin-left: 5px;
+            text-align: left; /* Asegura que el input también esté alineado a la izquierda */
+            display: inline-block;
+        }       
+        
+
     </style>
 </head>
 <body>
@@ -111,24 +172,57 @@
                 <table>
                     <thead>
                         <tr>
+                            <th>Process Name</th>
+                            <th>User</th>
+                            <th>%CPU</th>
                             <th>PID</th>
-                            <th>Proceso</th>
-                            <th>CPU (%)</th>
-                            <th>Memoria (%)</th>
+                            <th>Memory (%)</th>
+                            <th>Disk Read Total (MB)</th>
+                            <th>Disk Write Total (MB)</th>
+                            <th>Disk Read (KB)</th>
+                            <th>Disk Write (KB)</th>
+                            <th>Priority</th>
                         </tr>
                     </thead>
                     <tbody id="procesosTabla">
                     </tbody>
                 </table>
             </div>
+        </div>        
+        <div class="box">
+            <h3>Sistema de Archivos</h3>
+            <div class="scrollable">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Used (%)</th>
+                            <th>Device</th>
+                            <th>Directory</th>
+                            <th>Type</th>
+                            <th>Total (GB)</th>
+                            <th>Available (GB)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="fileSystemTable">
+                    </tbody>
+                </table>
+            </div>
         </div>
         <div class="box">
-            <h3>Otros Recursos (Disco Duro)</h3>
-            <div class="progress-container">
-                <div id="diskProgress" class="progress-bar" style="width: 50%; background-color: #3498db;">50%</div>
+            <h3>Terminal Bash</h3>
+            <div id="terminalContainer" class="terminal-container">
+                <div id="terminalPrompt" class="terminal-prompt">
+                    <span class="prompt-user">yeshua@linux</span>
+                    <span class="prompt-path">~/proyecto</span>
+                    <span class="prompt-symbol">$</span>
+                    <input type="text" id="comandoInput" autofocus placeholder="Escribe un comando..." onkeypress="detectarEnter(event)">
+                </div>
+                <pre id="salidaTerminal" class="terminal-output"></pre>
             </div>
-            <div class="progress-text" id="diskText">Cargando...</div>
         </div>
+        
+        
+        
     </div>
 
     <script>
@@ -189,30 +283,110 @@
         function actualizarTablaProcesos(procesos) {
             const tabla = document.getElementById("procesosTabla");
             tabla.innerHTML = "";
-
+        
             procesos.forEach(proc => {
                 let fila = `<tr>
-                    <td>${proc.pid}</td>
                     <td>${proc.nombre}</td>
+                    <td>${proc.usuario}</td>
                     <td style="color: ${proc.cpu > 50 ? 'red' : 'black'}">${proc.cpu}%</td>
+                    <td>${proc.pid}</td>
                     <td style="color: ${proc.memoria > 20 ? 'blue' : 'black'}">${proc.memoria}%</td>
+                    <td>${proc.disk_read_total} MB</td>
+                    <td>${proc.disk_write_total} MB</td>
+                    <td>${proc.disk_read} KB</td>
+                    <td>${proc.disk_write} KB</td>
+                    <td>${proc.prioridad}</td>
                 </tr>`;
                 tabla.innerHTML += fila;
             });
         }
+        
 
-        function actualizarBarraDisco(disco) {
-            const progreso = document.getElementById("diskProgress");
-            const texto = document.getElementById("diskText");
-
-            progreso.style.width = disco.porcentaje + "%";
-            progreso.innerHTML = disco.porcentaje + "%";
-            progreso.style.backgroundColor = disco.porcentaje > 80 ? "#e74c3c" : disco.porcentaje > 50 ? "#f39c12" : "#27ae60";
-
-            texto.innerHTML = `Espacio usado: ${disco.usado}GB / ${disco.total}GB`;
+        function actualizarTablaSistemaArchivos(discos) {
+            const tabla = document.getElementById("fileSystemTable");
+            tabla.innerHTML = "";
+        
+            discos.forEach(disco => {
+                let fila = `<tr>
+                    <td>${disco.used}%</td>
+                    <td>${disco.device}</td>
+                    <td>${disco.directory}</td>
+                    <td>${disco.type}</td>
+                    <td>${disco.total} GB</td>
+                    <td>${disco.available} GB</td>
+                </tr>`;
+                tabla.innerHTML += fila;
+            });
+        }
+        
+        async function actualizarDatos() {
+            try {
+                const response = await fetch('/monitoreo');
+                if (!response.ok) throw new Error('Error al obtener datos');
+                
+                const datos = await response.json();
+                const timestamp = new Date().toLocaleTimeString();
+        
+                agregarDatos(graficoCPU, timestamp, datos.cpu.uso);
+                agregarDatos(graficoMemoria, timestamp, datos.memoria.usada);
+                agregarDatos(graficoRed, timestamp, datos.red.envio, datos.red.recepcion);
+        
+                actualizarTablaProcesos(datos.procesos_lista);  // <-- ¡Se restauró esta línea!
+                actualizarTablaSistemaArchivos(datos.disco);
+            } catch (error) {
+                console.error("Error al actualizar datos:", error);
+            }
         }
 
+        function detectarEnter(event) {
+            if (event.key === "Enter") {
+                ejecutarComando();
+            }
+        }
+        
+        async function ejecutarComando() {
+            const comandoInput = document.getElementById("comandoInput");
+            const salidaTerminal = document.getElementById("salidaTerminal");
+            
+            const comando = comandoInput.value.trim();
+            if (!comando) return;
+        
+            // Agregar el comando alineado a la izquierda
+            salidaTerminal.innerHTML += `
+                <div style="text-align: left;">
+                    <span class="prompt-user">Ilove@linux</span>
+                    <span class="prompt-path">~/proyecto</span>
+                    <span class="prompt-symbol">$</span> ${comando}
+                </div>`;
+        
+            comandoInput.value = "";  // Limpiar input después de ejecutar
+        
+            try {
+                const response = await fetch('/ejecutar_comando', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ comando })
+                });
+        
+                const data = await response.json();
+                if (data.error) {
+                    salidaTerminal.innerHTML += `<div style="color: red; text-align: left;">${data.error}</div>`;
+                } else {
+                    // Asegurar que cada línea de la salida se alinee correctamente
+                    const salidaFormateada = data.salida.split("\n").map(linea => `<div style="text-align: left;">${linea}</div>`).join("");
+                    salidaTerminal.innerHTML += salidaFormateada;
+                }
+            } catch (error) {
+                salidaTerminal.innerHTML += `<div style="color: red; text-align: left;">Error de conexión con el servidor</div>`;
+            }
+        
+            salidaTerminal.scrollTop = salidaTerminal.scrollHeight; // Auto-scroll
+        }
+        
+        
+        
         setInterval(actualizarDatos, 5000);
+        
     </script>
 
 </body>
