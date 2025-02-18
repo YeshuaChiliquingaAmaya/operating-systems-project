@@ -71,7 +71,11 @@ def generar_pdf(horas=1):
     timestamps = [dato["timestamp"][:19] for dato in registros]
     cpu_uso = [dato["cpu"]["uso_promedio"] for dato in registros]
     memoria_uso = [dato["memoria"]["uso_promedio"] for dato in registros]
-    disco_uso = [dato["disco"]["porcentaje"] for dato in registros]
+    # Corregido: Se calcula el promedio de uso de disco de todas las particiones
+    disco_uso = [
+        sum(part["used"] for part in dato["disco"]) / len(dato["disco"]) if dato["disco"] else 0
+        for dato in registros
+    ]
     red_envio = [dato["red"]["envio_total"] for dato in registros]
     red_recepcion = [dato["red"]["recepcion_total"] for dato in registros]
 
