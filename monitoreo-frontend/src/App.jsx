@@ -4,6 +4,7 @@ import Dashboard from "./components/Dashboard";
 import Terminal from "./components/Terminal";
 import Monitor from "./components/TablesDashboard";
 import Navbar from "./components/NavBar";
+import VirusTotalScanner from "./components/VirusTotalScanner";
 
 function App() {
   return (
@@ -14,6 +15,7 @@ function App() {
       <Dashboard />
       <Terminal />
       <Monitor />
+      <VirusTotalScanner />
 
     </div>
   );

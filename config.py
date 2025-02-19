@@ -1,3 +1,6 @@
 MONGO_URI = "mongodb+srv://kiboki:kiboki@cluster0.gdvvk58.mongodb.net/SO?retryWrites=true&w=majority&appName=Cluster0"
 DB_NAME = "SO"
 COLLECTION_NAME = "monitoreo"
+API_KEY = "158983c19563ffaff21f531d2900a5a9e25ad235f3e16e33621989f3a76febb5"
+VT_FILE_SCAN = "https://www.virustotal.com/api/v3/files"
+VT_ANALYSIS_RESULT = "https://www.virustotal.com/api/v3/analyses"

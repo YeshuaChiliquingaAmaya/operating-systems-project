@@ -1,3 +1,4 @@
+import os
 import matplotlib.pyplot as plt
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
@@ -34,15 +35,19 @@ def obtener_info_sistema():
     return info
 
 def generar_pdf(horas=1):
-    """Genera un informe detallado basado en datos extraídos de MongoDB."""
+    """Genera un informe detallado basado en datos extraídos de la base de datos."""
     
     registros = obtener_historial(horas)
     if not registros:
         return "No hay datos suficientes para generar el reporte."
 
-    # Nombre del archivo PDF
+    # Crear una carpeta 'reports' en el directorio actual, si no existe
+    reports_dir = os.path.join(os.getcwd(), "reports")
+    os.makedirs(reports_dir, exist_ok=True)
+
+    # Nombre del archivo PDF con ruta absoluta
     timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-    nombre_pdf = f"reporte_completo_{timestamp}.pdf"
+    nombre_pdf = os.path.join(reports_dir, f"reporte_completo_{timestamp}.pdf")
     
     # Crear el documento PDF
     pdf = SimpleDocTemplate(nombre_pdf, pagesize=letter)
@@ -62,6 +67,7 @@ def generar_pdf(horas=1):
         if clave == "Red":
             story.append(Paragraph(f"<b>{clave}:</b>", styles['Normal']))
             for interfaz, detalles in valor.items():
+                # Se asume que hay al menos una dirección; ajusta si es necesario
                 story.append(Paragraph(f"{interfaz}: {detalles[0].address}", styles['Normal']))
         else:
             story.append(Paragraph(f"{clave}: {valor}", styles['Normal']))
@@ -71,7 +77,7 @@ def generar_pdf(horas=1):
     timestamps = [dato["timestamp"][:19] for dato in registros]
     cpu_uso = [dato["cpu"]["uso_promedio"] for dato in registros]
     memoria_uso = [dato["memoria"]["uso_promedio"] for dato in registros]
-    # Corregido: Se calcula el promedio de uso de disco de todas las particiones
+    # Se calcula el promedio de uso de disco de todas las particiones
     disco_uso = [
         sum(part["used"] for part in dato["disco"]) / len(dato["disco"]) if dato["disco"] else 0
         for dato in registros
@@ -130,7 +136,7 @@ def generar_pdf(horas=1):
     plt.ylabel("Uso (%)")
     plt.tight_layout()
 
-    imagen_grafico = f"grafico_{timestamp}.png"
+    imagen_grafico = os.path.join(reports_dir, f"grafico_{timestamp}.png")
     plt.savefig(imagen_grafico)
     plt.close()
 

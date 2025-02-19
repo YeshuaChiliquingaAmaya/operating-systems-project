@@ -8,7 +8,7 @@ ultimo_tiempo_cache = 0
 CACHE_TIEMPO = 5  # Segundos para refrescar
 
 def obtener_procesos():
-    """Obtiene la lista de procesos en ejecución ordenados por consumo."""
+    """Obtiene la lista de procesos en ejecución ordenados por consumo, incluyendo la ruta del ejecutable."""
     global cache_procesos, cache_io, ultimo_tiempo_cache
 
     tiempo_actual = time.time()
@@ -16,11 +16,12 @@ def obtener_procesos():
         return cache_procesos  # Retorna la cache si es reciente
 
     procesos_lista = []
-    for proc in psutil.process_iter(['pid', 'name', 'cpu_percent', 'memory_percent', 'username', 'nice', 'io_counters']):
+    for proc in psutil.process_iter(['pid', 'name', 'exe', 'cpu_percent', 'memory_percent', 'username', 'nice', 'io_counters']):
         try:
             io_counters = proc.info.get('io_counters', None)
             user = proc.info.get('username', 'Desconocido')
             priority = proc.info.get('nice', 0)
+            ruta_exe = proc.info.get('exe', 'Desconocido')  # Obtener ruta del ejecutable
 
             # Obtener lectura/escritura total
             disk_read_total = io_counters.read_bytes if io_counters else 0
@@ -36,6 +37,7 @@ def obtener_procesos():
             procesos_lista.append({
                 "pid": pid,
                 "nombre": proc.info["name"],
+                "ruta": ruta_exe,  # Agregamos la ruta del ejecutable
                 "usuario": user,
                 "cpu": round(proc.info["cpu_percent"], 2),
                 "memoria": round(proc.info["memory_percent"], 2),
@@ -55,7 +57,6 @@ def obtener_procesos():
     cache_procesos = procesos_lista[:20]
     ultimo_tiempo_cache = tiempo_actual
     return cache_procesos
-
 def obtener_sistema_archivos():
     """Obtiene información detallada del sistema de archivos, excluyendo dispositivos loop."""
     particiones = psutil.disk_partitions(all=False)
