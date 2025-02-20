@@ -6,11 +6,14 @@ from flask import send_file
 import subprocess
 from flask import Blueprint, request, jsonify
 import requests
-from config import API_KEY, VT_FILE_SCAN, VT_ANALYSIS_RESULT
+from config import API_KEY, VT_FILE_SCAN, VT_ANALYSIS_RESULT, API_KEY_GEMINI
 from monitor import obtener_monitoreo
+import google.generativeai as genai  
+from textwrap import dedent
 
 routes = Blueprint("routes", __name__)
 headers = {"x-apikey": API_KEY}
+
 @routes.route("/")
 def home():
     return render_template("index.html")
@@ -29,10 +32,74 @@ def historial(horas):
 
 @routes.route("/informe/<int:horas>")
 def descargar_informe(horas):
-    """Genera y descarga un informe detallado en PDF basado en la base de datos."""
-    nombre_pdf = generar_pdf(horas)
+    """Genera y descarga un informe detallado con análisis de Gemini."""
+    registros = obtener_historial(horas)
+    
+    if not registros:
+        return jsonify({"error": "No hay datos suficientes para generar el informe"}), 400
+
+    # Generar análisis con Gemini
+    explicacion = generar_analisis_gemini(registros)
+    
+    # Generar el PDF con la explicación de la IA
+    nombre_pdf = generar_pdf(horas, explicacion)
+    
     return send_file(nombre_pdf, as_attachment=True)
 
+def generar_analisis_gemini(datos):
+    """Usa Gemini AI para generar una explicación detallada y bien formateada del informe."""
+    
+    # Configurar la API Key de Gemini
+    genai.configure(api_key=API_KEY_GEMINI)
+
+    # Crear el prompt para la IA
+    prompt = f"""
+    Genera un informe de análisis del sistema basado en los datos proporcionados. 
+    El análisis debe incluir:
+
+    - **Resumen del estado del sistema**
+    - **Identificación de posibles problemas**
+    - **Recomendaciones para optimización**
+    
+    Estructura de respuesta esperada:
+
+    1. **Estado General**
+       - CPU: <Explicación>
+       - Memoria RAM: <Explicación>
+       - Almacenamiento: <Explicación>
+       - Red: <Explicación>
+
+    2. **Problemas Detectados**
+       - Si hay un uso alto en CPU, RAM, almacenamiento o red, explicarlo.
+       - Identificar si hay anomalías en los procesos.
+
+    3. **Recomendaciones**
+       - Optimización del rendimiento.
+       - Acciones sugeridas en caso de detección de problemas.
+
+    Datos del sistema:
+    {datos}
+    """
+
+    # Usar el modelo de Gemini correctamente
+    model = genai.GenerativeModel("gemini-1.5-pro")
+    response = model.generate_content(prompt)
+
+    # Formatear el texto para mejorar la presentación en PDF
+    explicacion = response.text if hasattr(response, "text") else "No se pudo generar el análisis."
+
+    return dedent(f"""
+        <b>Análisis Inteligente del Sistema</b>
+        
+        <b>1. Estado General</b>
+        {explicacion.split("1. Estado General")[1].split("2. Problemas Detectados")[0].strip()}
+
+        <b>2. Problemas Detectados</b>
+        {explicacion.split("2. Problemas Detectados")[1].split("3. Recomendaciones")[0].strip()}
+
+        <b>3. Recomendaciones</b>
+        {explicacion.split("3. Recomendaciones")[1].strip()}
+    """)
 # Lista de comandos peligrosos que queremos bloquear
 COMANDOS_PROHIBIDOS = ["rm", "shutdown", "reboot", "poweroff", "halt", "kill", "pkill", "mkfs", "dd", "fdisk", "mkpart", "wipefs"]
 
