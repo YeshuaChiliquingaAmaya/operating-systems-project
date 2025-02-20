@@ -38,20 +38,33 @@ def obtener_info_sistema():
 
     return info
 
+import os
+import re
+import matplotlib.pyplot as plt
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.enums import TA_JUSTIFY
+from reportlab.lib.styles import ParagraphStyle
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image, ListFlowable, ListItem
+from reportlab.lib import colors
+import platform
+import psutil
+import GPUtil
+from datetime import datetime
+from database import obtener_historial
+
 def limpiar_texto(texto):
     """Limpia el texto de caracteres problemáticos y reestructura listas."""
-    # Elimina etiquetas HTML mal formateadas y caracteres especiales
-    texto = re.sub(r"</?b>", "", texto)  
-    texto = re.sub(r"\*\*", "", texto)  
+    texto = re.sub(r"</?b>", "", texto)  # Elimina etiquetas mal formateadas
+    texto = re.sub(r"\*\*", "", texto)  # Elimina ** de negritas
     texto = texto.replace("\n", " ")
 
-    # Reemplaza guiones o asteriscos con formato de lista para ReportLab
+    # Convierte viñetas o guiones en listas para ReportLab
     texto = re.sub(r"\s*-\s*", "\n• ", texto)  
 
     return texto.strip()
 
 def generar_pdf(horas=1, explicacion_ia=""):
-    """Genera un informe detallado con análisis de IA con formato mejorado."""
+    """Genera un informe detallado con análisis de IA, incluyendo procesos y gráficos."""
 
     registros = obtener_historial(horas)
     if not registros:
@@ -156,6 +169,26 @@ def generar_pdf(horas=1, explicacion_ia=""):
         story.append(Paragraph(f"{recurso}: {detalles}", normal_style))
         story.append(Spacer(1, 6))
 
+    # **Agregar procesos más demandantes**
+    story.append(Paragraph("<b>Procesos con Mayor Consumo de CPU:</b>", subtitle_style))
+    procesos_top_cpu = sorted(
+        [proc for dato in registros for proc in dato["procesos"]],
+        key=lambda x: x["cpu"], reverse=True
+    )[:5]
+    for proc in procesos_top_cpu:
+        story.append(Paragraph(f"{proc['nombre']} - CPU: {proc['cpu']}% - PID: {proc['pid']}", normal_style))
+
+    story.append(Spacer(1, 12))
+    story.append(Paragraph("<b>Procesos con Mayor Consumo de Memoria:</b>", subtitle_style))
+    procesos_top_memoria = sorted(
+        [proc for dato in registros for proc in dato["procesos"]],
+        key=lambda x: x["memoria"], reverse=True
+    )[:5]
+    for proc in procesos_top_memoria:
+        story.append(Paragraph(f"{proc['nombre']} - Memoria: {proc['memoria']}% - PID: {proc['pid']}", normal_style))
+
+    story.append(Spacer(1, 12))
+
     # **Crear gráfico de consumo de recursos**
     plt.figure(figsize=(6, 3))
     plt.plot(timestamps, cpu_uso, label="CPU (%)", color="red", marker="o")
@@ -174,7 +207,6 @@ def generar_pdf(horas=1, explicacion_ia=""):
     plt.close()
 
     # **Agregar imagen al PDF**
-    story.append(Spacer(1, 12))
     story.append(Paragraph("<b>Gráficos de Consumo de Recursos:</b>", subtitle_style))
     story.append(Spacer(1, 12))
     story.append(Image(imagen_grafico, width=400, height=200))
